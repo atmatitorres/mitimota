@@ -1,0 +1,396 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <title>mitimota | Calculadora de Cuentas</title>
+    <!-- Google Fonts: Poppins para impacto y Inter para lectura -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Poppins:wght@800;900&display=swap" rel="stylesheet">
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Lucide Icons -->
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <style>
+        :root {
+            --primary: #6750A4;
+            --orange: #FF9500; /* Tu color favorito */
+            --bg: #FDF7FF;
+        }
+
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: var(--bg);
+            color: #1C1B1F;
+            margin: 0;
+            padding: 0;
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        .poppins-extra { font-family: 'Poppins', sans-serif; font-weight: 900; }
+        
+        /* Estética Pill-Shaped Material 3 */
+        .pill { border-radius: 9999px; }
+        .card-m3 { 
+            background: white; 
+            border-radius: 36px; 
+            border: 2px solid #E7E0EB;
+            box-shadow: 0 10px 30px rgba(103, 80, 164, 0.04);
+            transition: transform 0.2s ease;
+        }
+
+        /* Input de Restaurante estilo línea minimalista */
+        .res-input {
+            border: none;
+            border-bottom: 4px solid #E7E0EB;
+            background: transparent;
+            font-size: 2.5rem;
+            outline: none;
+            width: 100%;
+            padding: 10px 0;
+            color: var(--primary);
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+        .res-input:focus { border-bottom-color: var(--orange); }
+
+        /* FAB (+) Corregido: Fixed para que no se mueva de su lugar */
+        .fab {
+            position: fixed;
+            bottom: 30px;
+            right: 30px;
+            width: 85px;
+            height: 85px;
+            background-color: var(--orange);
+            color: white;
+            border-radius: 28px;
+            box-shadow: 0 15px 45px rgba(255, 149, 0, 0.4);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            border: none;
+            z-index: 1000;
+            transition: all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+        }
+        .fab:hover { transform: scale(1.1); }
+        .fab:active { transform: scale(0.9) rotate(5deg); }
+
+        .fade-in { animation: mmFade 0.4s ease-out; }
+        @keyframes mmFade { from { opacity: 0; transform: translateY(15px); } to { opacity: 1; transform: translateY(0); } }
+        
+        /* Ocultar scrollbar para un look más limpio */
+        ::-webkit-scrollbar { display: none; }
+    </style>
+</head>
+<body class="p-6 md:p-12">
+
+    <div id="app-container" class="max-w-md mx-auto relative pb-24">
+        <!-- HEADER CON ACCIONES -->
+        <header class="flex justify-between items-center mb-12">
+            <button onclick="ui.confirmNew()" class="p-4 bg-purple-100 text-purple-800 pill hover:bg-red-50 transition-all">
+                <i data-lucide="file-plus-2" class="w-6 h-6"></i>
+            </button>
+            <div class="flex flex-col items-center">
+                <div class="w-14 h-14 bg-purple-600 rounded-2xl rotate-12 flex items-center justify-center shadow-xl shadow-purple-200">
+                    <span class="text-white poppins-extra text-2xl -rotate-12">M</span>
+                </div>
+                <h1 class="poppins-extra text-2xl tracking-tighter mt-2 text-purple-900 uppercase">mitimota</h1>
+            </div>
+            <button onclick="ui.showHistory()" class="p-4 bg-purple-100 text-purple-800 pill hover:bg-purple-200 transition-all">
+                <i data-lucide="history" class="w-6 h-6"></i>
+            </button>
+        </header>
+
+        <!-- NOMBRE DE LA CUENTA (EJ: RESTAURANTE) -->
+        <div class="mb-12 fade-in">
+            <input type="text" id="resNameInput" class="res-input poppins-extra" value="Restaurante" placeholder="Restaurante">
+        </div>
+
+        <!-- LISTADO DINÁMICO DE PERSONAS -->
+        <div id="people-list" class="space-y-8"></div>
+
+        <!-- ESTADO CUANDO NO HAY NADIE -->
+        <div id="empty-state" class="text-center py-24 opacity-20">
+            <i data-lucide="users-2" class="w-24 h-24 mx-auto mb-6 text-purple-900"></i>
+            <p class="font-bold text-xl text-purple-900">Agrega a la primera persona<br>con el botón +</p>
+        </div>
+
+        <!-- SECCIÓN DE DESCUENTOS Y TOPES -->
+        <div id="disc-section" class="hidden mt-16 mb-10 p-8 bg-orange-50 rounded-[40px] border-2 border-orange-100 fade-in">
+            <h3 class="poppins-extra text-[10px] mb-6 uppercase tracking-[0.3em] text-orange-400">¿Algún Descuento?</h3>
+            <div class="flex gap-4">
+                <input type="number" id="pct" placeholder="% Dcto." class="w-1/2 p-5 bg-white pill outline-none focus:ring-4 ring-orange-100 font-black text-xl text-orange-900">
+                <input type="number" id="cap" placeholder="Tope" class="w-1/2 p-5 bg-white pill outline-none focus:ring-4 ring-orange-100 font-black text-xl text-orange-900">
+            </div>
+        </div>
+
+        <!-- TARJETA DE RESUMEN FINAL -->
+        <div id="summary" class="hidden mt-10 p-10 bg-purple-900 text-white rounded-[50px] shadow-2xl">
+            <h2 class="poppins-extra text-3xl text-center mb-10">Resumen</h2>
+            <div class="space-y-4 opacity-70 font-semibold text-lg">
+                <div class="flex justify-between"><span>Subtotal</span><span id="sumSub">$0</span></div>
+                <div class="flex justify-between text-green-300 font-bold"><span>Descuento</span><span id="sumDisc">-$0</span></div>
+                <div class="flex justify-between"><span>Propina (10%)</span><span id="sumTip">$0</span></div>
+            </div>
+            <div class="h-px bg-white/20 my-10"></div>
+            <div class="flex justify-between items-center mb-12">
+                <span class="poppins-extra text-lg text-purple-200 uppercase tracking-widest">Total</span>
+                <span id="sumTotal" class="poppins-extra text-6xl text-white">$0</span>
+            </div>
+            <button onclick="logic.save()" class="w-full py-7 bg-white text-purple-900 poppins-extra text-xl pill shadow-xl hover:scale-[1.02] active:scale-95 transition-all">
+                GUARDAR
+            </button>
+        </div>
+
+        <!-- BOTÓN FLOTANTE (+) FIJO -->
+        <button onclick="ui.modalAdd()" class="fab" id="main-fab">
+            <i data-lucide="plus" class="w-12 h-12"></i>
+        </button>
+
+        <!-- SISTEMA DE MODALES -->
+        <div id="overlay" class="fixed inset-0 bg-purple-950/70 backdrop-blur-md z-[2000] hidden items-center justify-center p-6" onclick="if(event.target===this) ui.closeModal()">
+            <div id="modal" class="card-m3 w-full max-w-sm p-10 shadow-2xl fade-in" onclick="event.stopPropagation()"></div>
+        </div>
+    </div>
+
+    <script>
+        // --- LÓGICA DE NEGOCIO ---
+        const logic = {
+            people: [],
+            palette: ["#40c057", "#339af0", "#7048e8", "#be4bdb", "#f06595", "#fd7e14", "#fcc419"],
+            
+            add(name) {
+                if(!name.trim()) return;
+                this.people.push({
+                    id: 'p-' + Date.now(),
+                    name: name.trim(),
+                    color: this.palette[this.people.length % this.palette.length],
+                    items: [],
+                    subtotal: 0, disc: 0, tip: 0, total: 0
+                });
+                this.calc();
+            },
+
+            addItem(pId, name, price) {
+                const p = this.people.find(x => x.id === pId);
+                const pPrice = parseFloat(price);
+                if(isNaN(pPrice)) return;
+                p.items.push({ id: 'i-'+Date.now(), name: name || `Item ${p.items.length + 1}`, price: pPrice });
+                this.calc();
+            },
+
+            calc() {
+                const pct = parseFloat(document.getElementById("pct").value) || 0;
+                const cap = parseFloat(document.getElementById("cap").value) || Infinity;
+                
+                let gSub = 0;
+                this.people.forEach(p => {
+                    p.subtotal = p.items.reduce((a, b) => a + b.price, 0);
+                    gSub += p.subtotal;
+                });
+
+                const totalDisc = Math.min(gSub * (pct / 100), cap);
+
+                this.people.forEach(p => {
+                    const ratio = gSub > 0 ? p.subtotal / gSub : 0;
+                    p.disc = totalDisc * ratio;
+                    p.tip = p.subtotal * 0.10;
+                    p.total = p.subtotal - p.disc + p.tip;
+                });
+
+                ui.refresh();
+            },
+
+            save() {
+                if(this.people.length === 0) return;
+                const h = JSON.parse(localStorage.getItem("mitimota_final_db") || "[]");
+                h.unshift({
+                    id: Date.now(),
+                    res: document.getElementById("resNameInput").value || "Restaurante",
+                    date: new Date().toLocaleString('es-CL', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' }),
+                    total: this.people.reduce((a,b) => a + b.total, 0),
+                    data: JSON.parse(JSON.stringify(this.people)),
+                    pct: document.getElementById("pct").value,
+                    cap: document.getElementById("cap").value
+                });
+                localStorage.setItem("mitimota_final_db", JSON.stringify(h));
+                alert("¡Cena guardada con éxito!");
+                this.people = []; this.calc();
+            }
+        };
+
+        // --- MANEJO DE INTERFAZ ---
+        const ui = {
+            refresh() {
+                const container = document.getElementById("people-list");
+                const empty = document.getElementById("empty-state");
+                const disc = document.getElementById("disc-section");
+                const summ = document.getElementById("summary");
+
+                if(logic.people.length === 0) { 
+                    container.innerHTML = ""; 
+                    empty.classList.remove("hidden");
+                    disc.classList.add("hidden");
+                    summ.classList.add("hidden");
+                    lucide.createIcons();
+                    return;
+                }
+
+                empty.classList.add("hidden");
+                disc.classList.remove("hidden");
+                summ.classList.remove("hidden");
+
+                container.innerHTML = logic.people.map(p => `
+                    <div class="card-m3 p-8 border-l-[14px] fade-in" style="border-left-color: ${p.color}">
+                        <div class="flex justify-between items-start mb-8">
+                            <span class="poppins-extra text-2xl px-6 py-2 pill" style="background: ${p.color}15; color: ${p.color}">${p.name}</span>
+                            <div class="flex gap-2">
+                                <button onclick="ui.copyIndividual(\'${p.id}\')" class="p-3 text-purple-600 pill hover:bg-purple-50 transition-all"><i data-lucide="share-2" class="w-6 h-6"></i></button>
+                                <button onclick="ui.removePerson(\'${p.id}\')" class="p-3 text-red-300 hover:text-red-600 transition-all"><i data-lucide="user-minus" class="w-6 h-6"></i></button>
+                            </div>
+                        </div>
+
+                        <div class="flex gap-3 mb-8">
+                            <input type="text" id="n-${p.id}" placeholder="Nombre" class="w-1/3 p-5 bg-gray-50 pill outline-none font-medium focus:bg-white focus:ring-4 ring-purple-100 transition-all text-sm">
+                            <input type="number" id="p-${p.id}" placeholder="Precio" class="w-1/3 p-5 bg-gray-50 pill outline-none font-black poppins-extra text-lg focus:bg-white focus:ring-4 ring-purple-100 transition-all" onkeydown="if(event.key===\'Enter\') ui.addItem(\'${p.id}\')">
+                            <button onclick="ui.addItem(\'${p.id}\')" class="w-16 h-16 bg-purple-600 text-white pill flex items-center justify-center shadow-lg active:scale-90 transition-transform">
+                                <i data-lucide="plus" class="w-8 h-8"></i>
+                            </button>
+                        </div>
+
+                        <div class="space-y-4 mb-8">
+                            ${p.items.map(i => `
+                                <div class="flex justify-between items-center group">
+                                    <div class="flex items-center gap-4">
+                                        <button onclick="ui.modalEditItem(\'${p.id}\',\'${i.id}\')" class="text-gray-300 hover:text-purple-600 transition-colors"><i data-lucide="edit" class="w-5 h-5"></i></button>
+                                        <span class="font-semibold text-gray-600">${i.name}</span>
+                                    </div>
+                                    <span class="poppins-extra text-2xl text-gray-900">$${Math.round(i.price).toLocaleString()}</span>
+                                </div>
+                            `).join("")}
+                        </div>
+
+                        <div class="pt-8 border-t border-dashed border-gray-200 space-y-2">
+                            <div class="flex justify-between text-xs text-gray-400 uppercase font-black tracking-widest"><span>Subtotal</span><span>$${Math.round(p.subtotal).toLocaleString()}</span></div>
+                            ${p.disc > 0 ? `<div class="flex justify-between text-xs text-green-500 font-black uppercase tracking-widest"><span>Dcto</span><span>-$${Math.round(p.disc).toLocaleString()}</span></div>` : ''}
+                            <div class="flex justify-between text-xs text-gray-400 uppercase font-black tracking-widest"><span>Propina (10%)</span><span>$${Math.round(p.tip).toLocaleString()}</span></div>
+                            <div class="flex justify-between pt-6 poppins-extra text-5xl" style="color: ${p.color}">
+                                <span class="text-sm self-center opacity-40 uppercase poppins-extra">Total</span><span>$${Math.round(p.total).toLocaleString()}</span>
+                            </div>
+                        </div>
+                    </div>
+                `).join("");
+
+                const gs = logic.people.reduce((a,b)=>a+b.subtotal,0);
+                const gd = logic.people.reduce((a,b)=>a+b.disc,0);
+                const gt = logic.people.reduce((a,b)=>a+b.tip,0);
+
+                document.getElementById("sumSub").innerText = "$" + Math.round(gs).toLocaleString();
+                document.getElementById("sumDisc").innerText = "-$" + Math.round(gd).toLocaleString();
+                document.getElementById("sumTip").innerText = "$" + Math.round(gt).toLocaleString();
+                document.getElementById("sumTotal").innerText = "$" + Math.round(gs - gd + gt).toLocaleString();
+                
+                lucide.createIcons();
+            },
+
+            addItem(pid) {
+                const n = document.getElementById("n-"+pid), p = document.getElementById("p-"+pid);
+                if(!p.value || parseFloat(p.value) <= 0) return;
+                logic.addItem(pid, n.value, p.value);
+                n.value=""; p.value="";
+                document.getElementById("p-"+pid).focus(); // El foco vuelve al precio automáticamente
+            },
+
+            removePerson(id) { logic.people = logic.people.filter(x=>x.id!==id); logic.calc(); },
+
+            modalAdd() {
+                this.openModal(`
+                    <h2 class="poppins-extra text-3xl mb-10 text-purple-900 text-center">Agregar persona</h2>
+                    <input type="text" id="m-name" placeholder="Nombre..." class="w-full p-6 bg-gray-100 pill outline-none mb-10 font-black text-2xl text-purple-900 focus:bg-white focus:ring-4 ring-purple-100 transition-all" autofocus>
+                    <div class="flex gap-4">
+                        <button onclick="ui.closeModal()" class="flex-1 font-black text-gray-400 uppercase tracking-widest text-xs">Cerrar</button>
+                        <button onclick="logic.add(document.getElementById(\'m-name\').value); ui.closeModal()" class="flex-1 py-5 bg-purple-600 text-white pill poppins-extra shadow-xl">LISTO</button>
+                    </div>
+                `);
+                document.getElementById("m-name").onkeydown = e => { if(e.key==="Enter") { logic.add(e.target.value); ui.closeModal(); } };
+            },
+
+            modalEditItem(pId, iId) {
+                const p = logic.people.find(x=>x.id===pId);
+                const i = p.items.find(x=>x.id===iId);
+                this.openModal(`
+                    <h2 class="poppins-extra text-2xl mb-8 text-purple-900">Editar Item</h2>
+                    <input type="text" id="e-n" value="${i.name}" class="w-full p-5 bg-gray-100 pill mb-3 outline-none font-bold">
+                    <input type="number" id="e-p" value="${i.price}" class="w-full p-5 bg-gray-100 pill mb-10 outline-none font-black text-4xl text-purple-600 focus:ring-4 ring-purple-50">
+                    <div class="flex gap-4">
+                        <button onclick="ui.closeModal()" class="flex-1 text-gray-400 font-bold uppercase text-xs">Volver</button>
+                        <button onclick="ui.saveEdit(\'${pId}\',\'${iId}\')" class="flex-1 py-5 bg-purple-600 text-white pill poppins-extra shadow-lg">OK</button>
+                    </div>
+                `);
+            },
+
+            saveEdit(pId, iId) {
+                const p = logic.people.find(x=>x.id===pId);
+                const i = p.items.find(x=>x.id===iId);
+                i.name = document.getElementById("e-n").value;
+                i.price = parseFloat(document.getElementById("e-p").value) || 0;
+                this.closeModal(); logic.calc();
+            },
+
+            showHistory() {
+                const h = JSON.parse(localStorage.getItem("mitimota_final_db") || "[]");
+                this.openModal(`
+                    <h2 class="poppins-extra text-3xl mb-10 text-purple-900 text-center">Historial</h2>
+                    <div class="max-h-96 overflow-y-auto space-y-4 mb-10 no-scrollbar">
+                        ${h.length ? h.map((x,i) => `
+                            <div onclick="ui.loadHist(${i})" class="p-8 bg-purple-50 rounded-[40px] flex justify-between items-center cursor-pointer hover:bg-orange-50 transition-all group">
+                                <div><div class="poppins-extra text-purple-900 text-xl">${x.res}</div><div class="text-[10px] text-purple-300 font-black uppercase tracking-widest">${x.date}</div></div>
+                                <div class="poppins-extra text-3xl text-purple-600 group-hover:text-orange-600 transition-all">$${Math.round(x.total).toLocaleString()}</div>
+                            </div>
+                        `).join("") : "<p class=\'text-center text-gray-300 py-10 font-bold\'>No hay cenas guardadas.</p>"}
+                    </div>
+                    <button onclick="ui.closeModal()" class="w-full py-6 bg-gray-100 pill font-black text-gray-400 uppercase tracking-widest text-xs">CERRAR</button>
+                `);
+            },
+
+            loadHist(i) {
+                const x = JSON.parse(localStorage.getItem("mitimota_final_db"))[i];
+                logic.people = JSON.parse(JSON.stringify(x.data)); // Clonación profunda para evitar errores de carga
+                document.getElementById("resNameInput").value = x.res;
+                document.getElementById("pct").value = x.pct || "";
+                document.getElementById("cap").value = x.cap || "";
+                this.closeModal(); logic.calc();
+            },
+
+            confirmNew() {
+                if(logic.people.length === 0) { logic.people = []; logic.calc(); return; }
+                this.openModal(`
+                    <h2 class="poppins-extra text-3xl mb-8 text-red-600 text-center">¿Borrar todo?</h2>
+                    <p class="text-gray-500 mb-10 text-center font-medium leading-relaxed">¿Seguro quieres crear una cuenta nueva? Perderás los datos actuales de la mesa.</p>
+                    <div class="flex gap-4">
+                        <button onclick="ui.closeModal()" class="flex-1 font-bold text-gray-400 uppercase text-xs">NO</button>
+                        <button onclick="logic.people=[]; logic.calc(); ui.closeModal()" class="flex-1 py-5 bg-red-600 text-white pill poppins-extra shadow-xl">SÍ, BORRAR</button>
+                    </div>
+                `);
+            },
+
+            copyIndividual(id) {
+                const p = logic.people.find(x=>x.id===id);
+                const res = document.getElementById("resNameInput").value;
+                const msg = `¡Hola ${p.name}! Tu total en ${res} es de $${Math.round(p.total).toLocaleString()}. ¡Gracias!`;
+                navigator.clipboard.writeText(msg);
+                alert("¡Mensaje de cobro copiado!");
+            },
+
+            openModal(html) { document.getElementById("modal").innerHTML = html; document.getElementById("overlay").classList.replace("hidden", "flex"); },
+            closeModal() { document.getElementById("overlay").classList.replace("flex", "hidden"); }
+        };
+
+        window.onload = () => {
+            lucide.createIcons();
+            ui.refresh();
+            document.getElementById("pct").oninput = () => logic.calc();
+            document.getElementById("cap").oninput = () => logic.calc();
+        };
+    </script>
+</body>
+</html>
