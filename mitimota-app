@@ -1,0 +1,418 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <title>mitimota | Calculadora de Cuentas</title>
+    <!-- Google Fonts: Poppins para títulos y Inter para lectura -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Poppins:wght@800;900&display=swap" rel="stylesheet">
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Lucide Icons -->
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <style>
+        :root {
+            --primary: #6750A4;
+            --orange: #FF9500; /* Tu color favorito */
+            --bg: #FDF7FF;
+        }
+
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: var(--bg);
+            color: #1C1B1F;
+            margin: 0;
+            padding: 0;
+            display: flex;
+            justify-content: center;
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        /* Contenedor principal relativo para que el FAB no se escape */
+        #mitimota-app {
+            width: 100%;
+            max-width: 550px;
+            min-height: 100vh;
+            position: relative;
+            background-color: var(--bg);
+            padding-bottom: 120px; /* Espacio para que el FAB no tape el contenido */
+        }
+
+        .poppins-extra { font-family: 'Poppins', sans-serif; font-weight: 900; }
+        
+        .pill { border-radius: 9999px; }
+
+        .card-expressive { 
+            background: white; 
+            border-radius: 36px; 
+            border: 2px solid #E7E0EB;
+            box-shadow: 0 10px 30px -10px rgba(103, 80, 164, 0.05);
+            transition: all 0.3s ease;
+        }
+
+        .res-input {
+            border: none;
+            border-bottom: 4px solid #E7E0EB;
+            background: transparent;
+            font-size: 2.5rem;
+            outline: none;
+            width: 100%;
+            padding: 10px 0;
+            color: var(--primary);
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+        .res-input:focus { border-bottom-color: var(--orange); }
+
+        /* FAB Corregido: Absolute para quedarse dentro del embed */
+        .fab {
+            position: absolute;
+            bottom: 30px;
+            right: 30px;
+            width: 85px;
+            height: 85px;
+            background-color: var(--orange);
+            color: white;
+            border-radius: 30px;
+            box-shadow: 0 15px 40px rgba(255, 149, 0, 0.4);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            border: none;
+            z-index: 100;
+            transition: all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+        }
+        .fab:hover { transform: scale(1.1); }
+        .fab:active { transform: scale(0.9) rotate(5deg); }
+
+        .fade-in { animation: mmFadeIn 0.5s ease-out; }
+        @keyframes mmFadeIn { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
+
+        .no-scrollbar::-webkit-scrollbar { display: none; }
+    </style>
+</head>
+<body class="p-4 md:p-8">
+
+    <div id="mitimota-app" class="fade-in">
+        <!-- HEADER -->
+        <header class="flex justify-between items-center mb-10 mt-4">
+            <button onclick="ui.promptReset()" class="p-4 bg-purple-100 text-purple-900 pill hover:bg-red-100 hover:text-red-600 transition-all">
+                <i data-lucide="file-plus-2" class="w-6 h-6"></i>
+            </button>
+            <div class="flex flex-col items-center">
+                <div class="w-14 h-14 bg-purple-600 rounded-2xl rotate-12 flex items-center justify-center shadow-xl">
+                    <span class="text-white poppins-extra text-2xl -rotate-12">M</span>
+                </div>
+                <h1 class="poppins-extra text-2xl tracking-tighter mt-2 text-purple-900 uppercase">mitimota</h1>
+            </div>
+            <button onclick="ui.showHistory()" class="p-4 bg-purple-100 text-purple-900 pill hover:bg-purple-200 transition-all">
+                <i data-lucide="history" class="w-6 h-6"></i>
+            </button>
+        </header>
+
+        <!-- NOMBRE DE LA CUENTA -->
+        <div class="mb-10 px-2">
+            <input type="text" id="restaurant-name" class="res-input poppins-extra" value="Restaurante" placeholder="Restaurante">
+        </div>
+
+        <!-- LISTA DE PERSONAS -->
+        <div id="people-list" class="space-y-6"></div>
+
+        <!-- ESTADO VACÍO -->
+        <div id="empty-state" class="text-center py-20 opacity-20">
+            <i data-lucide="users-2" class="w-24 h-24 mx-auto mb-6 text-purple-900"></i>
+            <p class="font-bold text-xl text-purple-900">Agrega a la primera persona<br>con el botón +</p>
+        </div>
+
+        <!-- SECCIÓN DESCUENTOS -->
+        <div id="discount-section" class="hidden mt-12 mb-8 p-8 bg-orange-50 rounded-[40px] border-2 border-orange-100 fade-in">
+            <h3 class="poppins-extra text-xs mb-6 uppercase tracking-[0.3em] text-orange-400">¿Algún Descuento?</h3>
+            <div class="flex gap-4">
+                <input type="number" id="global-pct" placeholder="% Dcto." class="w-1/2 p-5 bg-white pill outline-none focus:ring-4 ring-orange-100 font-black text-xl text-orange-900">
+                <input type="number" id="global-cap" placeholder="Tope" class="w-1/2 p-5 bg-white pill outline-none focus:ring-4 ring-orange-100 font-black text-xl text-orange-900">
+            </div>
+        </div>
+
+        <!-- RESUMEN FINAL -->
+        <div id="summary-card" class="hidden mt-10 p-10 bg-purple-900 text-white rounded-[50px] shadow-2xl shadow-purple-300">
+            <h2 class="poppins-extra text-3xl text-center mb-8">Resumen</h2>
+            <div class="space-y-3 opacity-70 font-medium">
+                <div class="flex justify-between"><span>Subtotal</span><span id="sum-sub">$0</span></div>
+                <div class="flex justify-between text-green-300 font-bold"><span>Descuento</span><span id="sum-disc">-$0</span></div>
+                <div class="flex justify-between"><span>Propina (10%)</span><span id="sum-tip">$0</span></div>
+            </div>
+            <div class="h-px bg-white/20 my-8"></div>
+            <div class="flex justify-between items-center mb-10">
+                <span class="poppins-extra text-lg text-purple-200">TOTAL</span>
+                <span id="sum-total" class="poppins-extra text-5xl">$0</span>
+            </div>
+            <button onclick="app.saveSession()" class="w-full py-6 bg-white text-purple-900 poppins-extra text-xl pill shadow-xl hover:scale-[1.02] active:scale-95 transition-all">
+                GUARDAR
+            </button>
+        </div>
+
+        <!-- BOTÓN FLOTANTE (+) POSICIONADO CORRECTAMENTE -->
+        <button onclick="ui.openAddModal()" class="fab" id="main-fab">
+            <i data-lucide="plus" class="w-12 h-12"></i>
+        </button>
+
+        <!-- MODAL OVERLAY -->
+        <div id="modal-overlay" class="fixed inset-0 bg-purple-950/70 backdrop-blur-md z-[200] hidden items-center justify-center p-6" onclick="if(event.target===this) ui.closeModal()">
+            <div id="modal-content" class="card-expressive w-full max-w-sm p-10 shadow-2xl fade-in" onclick="event.stopPropagation()"></div>
+        </div>
+    </div>
+
+    <script>
+        // --- MOTOR DE LÓGICA ---
+        const app = {
+            people: [],
+            colors: ['#40c057', '#339af0', '#7048e8', '#be4bdb', '#f06595', '#fd7e14', '#fcc419'],
+
+            addPerson(name) {
+                if(!name.trim()) return;
+                this.people.push({
+                    id: 'p-' + Date.now(),
+                    name: name.trim(),
+                    color: this.colors[this.people.length % this.colors.length],
+                    items: [],
+                    totals: { sub: 0, disc: 0, tip: 0, final: 0 }
+                });
+                this.calculate();
+            },
+
+            addItem(pId, name, price) {
+                const p = this.people.find(x => x.id === pId);
+                const pPrice = parseFloat(price);
+                if(isNaN(pPrice)) return;
+                p.items.push({ id: 'i-'+Date.now(), name: name || `Item ${p.items.length + 1}`, price: pPrice });
+                this.calculate();
+            },
+
+            calculate() {
+                const pct = parseFloat(document.getElementById('global-pct').value) || 0;
+                const cap = parseFloat(document.getElementById('global-cap').value) || Infinity;
+                
+                let grandSub = 0;
+                this.people.forEach(p => {
+                    p.totals.sub = p.items.reduce((a, b) => a + b.price, 0);
+                    grandSub += p.totals.sub;
+                });
+
+                const totalDiscount = Math.min(grandSub * (pct / 100), cap);
+
+                this.people.forEach(p => {
+                    const ratio = grandSub > 0 ? p.totals.sub / grandSub : 0;
+                    p.totals.disc = totalDiscount * ratio;
+                    p.totals.tip = p.totals.sub * 0.10;
+                    p.totals.final = p.totals.sub - p.totals.disc + p.totals.tip;
+                });
+
+                ui.render();
+            },
+
+            saveSession() {
+                if(this.people.length === 0) return;
+                const history = JSON.parse(localStorage.getItem('mm_history_web') || '[]');
+                const session = {
+                    id: Date.now(),
+                    restaurant: document.getElementById('restaurant-name').value || 'Restaurante',
+                    date: new Date().toLocaleString('es-CL', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' }),
+                    total: this.people.reduce((a,b) => a + b.totals.final, 0),
+                    people: JSON.parse(JSON.stringify(this.people)),
+                    config: { pct: document.getElementById('global-pct').value, cap: document.getElementById('global-cap').value }
+                };
+                history.unshift(session);
+                localStorage.setItem('mm_history_web', JSON.stringify(history));
+                alert("¡Cuenta guardada en el historial!");
+                this.reset();
+            },
+
+            reset() {
+                this.people = [];
+                document.getElementById('restaurant-name').value = "Restaurante";
+                document.getElementById('global-pct').value = "";
+                document.getElementById('global-cap').value = "";
+                this.calculate();
+            }
+        };
+
+        // --- MANEJO DE INTERFAZ ---
+        const ui = {
+            render() {
+                const list = document.getElementById('people-list');
+                const empty = document.getElementById('empty-state');
+                const disc = document.getElementById('discount-section');
+                const summary = document.getElementById('summary-card');
+
+                if(app.people.length === 0) {
+                    list.innerHTML = "";
+                    empty.classList.remove('hidden');
+                    disc.classList.add('hidden');
+                    summary.classList.add('hidden');
+                    lucide.createIcons();
+                    return;
+                }
+
+                empty.classList.add('hidden');
+                disc.classList.remove('hidden');
+                summary.classList.remove('hidden');
+
+                list.innerHTML = app.people.map(p => `
+                    <div class="card-expressive p-8 border-l-[14px] fade-in" style="border-left-color: ${p.color}">
+                        <div class="flex justify-between items-start mb-8">
+                            <span class="poppins-extra text-2xl px-6 py-2 pill" style="background: ${p.color}15; color: ${p.color}">
+                                ${p.name}
+                            </span>
+                            <div class="flex gap-2">
+                                <button onclick="ui.copyIndividual('${p.id}')" class="p-3 text-purple-600 pill hover:bg-purple-50 transition-all"><i data-lucide="share-2" class="w-6 h-6"></i></button>
+                                <button onclick="ui.removePerson('${p.id}')" class="p-3 text-red-400 pill hover:bg-red-50 transition-all"><i data-lucide="trash-2" class="w-6 h-6"></i></button>
+                            </div>
+                        </div>
+
+                        <div class="flex gap-3 mb-8">
+                            <input type="text" id="in-n-${p.id}" placeholder="Nombre" class="w-1/3 p-5 bg-gray-50 pill outline-none font-medium focus:bg-white focus:ring-4 ring-purple-100 transition-all text-sm">
+                            <input type="number" id="in-p-${p.id}" placeholder="Precio" class="w-1/3 p-5 bg-gray-50 pill outline-none font-black poppins-extra text-lg focus:bg-white focus:ring-4 ring-purple-100 transition-all" onkeydown="if(event.key==='Enter') ui.addItem('${p.id}')">
+                            <button onclick="ui.addItem('${p.id}')" class="w-16 h-16 bg-purple-600 text-white pill flex items-center justify-center shadow-xl active:scale-90 transition-transform">
+                                <i data-lucide="check" class="w-8 h-8"></i>
+                            </button>
+                        </div>
+
+                        <div class="space-y-4 mb-8">
+                            ${p.items.map(i => `
+                                <div class="flex justify-between items-center group">
+                                    <div class="flex items-center gap-4">
+                                        <button onclick="ui.editItemModal('${p.id}','${i.id}')" class="text-gray-300 hover:text-purple-600 transition-colors"><i data-lucide="edit" class="w-5 h-5"></i></button>
+                                        <span class="font-semibold text-gray-600">${i.name}</span>
+                                    </div>
+                                    <span class="poppins-extra text-xl text-gray-900">$${Math.round(i.price).toLocaleString()}</span>
+                                </div>
+                            `).join('')}
+                        </div>
+
+                        <div class="pt-8 border-t border-dashed border-gray-200 space-y-2">
+                            <div class="flex justify-between text-xs text-gray-400 uppercase font-black tracking-widest"><span>Subtotal</span><span>$${Math.round(p.totals.sub).toLocaleString()}</span></div>
+                            ${p.totals.disc > 0 ? `<div class="flex justify-between text-xs text-green-500 font-black uppercase tracking-widest"><span>Dcto</span><span>-$${Math.round(p.totals.disc).toLocaleString()}</span></div>` : ''}
+                            <div class="flex justify-between text-xs text-gray-400 uppercase font-black tracking-widest"><span>Propina</span><span>$${Math.round(p.totals.tip).toLocaleString()}</span></div>
+                            <div class="flex justify-between pt-6 poppins-extra text-4xl" style="color: ${p.color}">
+                                <span class="text-sm self-center opacity-40">TOTAL</span><span>$${Math.round(p.totals.final).toLocaleString()}</span>
+                            </div>
+                        </div>
+                    </div>
+                `).join('');
+
+                const gs = app.people.reduce((a,b)=>a+b.totals.sub,0);
+                const gd = app.people.reduce((a,b)=>a+b.totals.disc,0);
+                const gt = app.people.reduce((a,b)=>a+b.totals.tip,0);
+
+                document.getElementById('sum-sub').innerText = `$${Math.round(gs).toLocaleString()}`;
+                document.getElementById('sum-disc').innerText = `-$${Math.round(gd).toLocaleString()}`;
+                document.getElementById('sum-tip').innerText = `$${Math.round(gt).toLocaleString()}`;
+                document.getElementById('sum-total').innerText = `$${Math.round(gs - gd + gt).toLocaleString()}`;
+
+                lucide.createIcons();
+            },
+
+            addItem(pId) {
+                const n = document.getElementById(`in-n-${pId}`);
+                const p = document.getElementById(`in-p-${pId}`);
+                if(!p.value) return;
+                app.addItem(pId, n.value, p.value);
+                n.value = ""; p.value = "";
+                document.getElementById(`in-p-${pId}`).focus(); // Volver al precio siempre
+            },
+
+            removePerson(id) { app.people = app.people.filter(x => x.id !== id); app.calculate(); },
+
+            openAddModal() {
+                this.openModal(`
+                    <h2 class="poppins-extra text-3xl mb-10 text-purple-900">Agregar persona</h2>
+                    <input type="text" id="modal-name-in" placeholder="Nombre..." class="w-full p-6 bg-gray-100 pill outline-none mb-10 font-black text-2xl text-purple-900 focus:bg-white focus:ring-4 ring-purple-100 transition-all" autofocus>
+                    <div class="flex gap-4">
+                        <button onclick="ui.closeModal()" class="flex-1 py-5 text-gray-400 font-black uppercase text-xs">Cerrar</button>
+                        <button onclick="app.addPerson(document.getElementById('modal-name-in').value); ui.closeModal();" class="flex-1 py-5 bg-purple-600 text-white pill font-black shadow-2xl">AGREGAR</button>
+                    </div>
+                `);
+                document.getElementById('modal-name-in').onkeydown = e => { if(e.key==='Enter') { app.addPerson(e.target.value); ui.closeModal(); }};
+            },
+
+            editItemModal(pId, iId) {
+                const p = app.people.find(x=>x.id===pId);
+                const i = p.items.find(x=>x.id===iId);
+                this.openModal(`
+                    <h2 class="poppins-extra text-2xl mb-8 text-purple-900">Editar Item</h2>
+                    <input type="text" id="edit-name" value="${i.name}" class="w-full p-5 bg-gray-100 pill mb-3 outline-none font-bold">
+                    <input type="number" id="edit-price" value="${i.price}" class="w-full p-5 bg-gray-100 pill mb-10 outline-none font-black text-3xl text-purple-600">
+                    <div class="flex gap-4">
+                        <button onclick="ui.closeModal()" class="flex-1 text-gray-400 font-bold uppercase text-xs">Cancelar</button>
+                        <button onclick="ui.saveEdit('${pId}','${iId}')" class="flex-1 py-5 bg-purple-600 text-white pill font-black shadow-xl">LISTO</button>
+                    </div>
+                `);
+            },
+
+            saveEdit(pId, iId) {
+                const p = app.people.find(x=>x.id===pId);
+                const i = p.items.find(x=>x.id===iId);
+                i.name = document.getElementById('edit-name').value;
+                i.price = parseFloat(document.getElementById('edit-price').value) || 0;
+                this.closeModal(); app.calculate();
+            },
+
+            promptReset() {
+                if(app.people.length === 0) return app.reset();
+                this.openModal(`
+                    <h2 class="poppins-extra text-3xl mb-8 text-red-600">¿Borrar todo?</h2>
+                    <p class="text-gray-500 mb-10 font-medium leading-relaxed">¿Seguro quieres crear una cuenta nueva? Todos los datos se perderán.</p>
+                    <div class="flex gap-4">
+                        <button onclick="ui.closeModal()" class="flex-1 text-gray-400 font-bold uppercase text-xs">Volver</button>
+                        <button onclick="app.reset(); ui.closeModal();" class="flex-1 py-5 bg-red-500 text-white pill font-black shadow-xl">SÍ, BORRAR</button>
+                    </div>
+                `);
+            },
+
+            showHistory() {
+                const h = JSON.parse(localStorage.getItem('mm_history_web') || '[]');
+                this.openModal(`
+                    <h2 class="poppins-extra text-3xl mb-10 text-purple-900">Historial</h2>
+                    <div class="max-h-[400px] overflow-y-auto space-y-4 no-scrollbar mb-10">
+                        ${h.length === 0 ? '<p class="text-center text-gray-300 py-12 font-bold">No hay cenas.</p>' : 
+                          h.map((x, idx) => `
+                            <div onclick="ui.loadFromHistory(${idx})" class="p-7 bg-purple-50 rounded-[35px] flex justify-between items-center cursor-pointer hover:bg-orange-100 transition-all group">
+                                <div><div class="poppins-extra text-purple-900 text-xl">${x.restaurant}</div><div class="text-[11px] text-purple-300 font-black uppercase tracking-widest">${x.date}</div></div>
+                                <div class="poppins-extra text-2xl text-purple-600">$${Math.round(x.total).toLocaleString()}</div>
+                            </div>
+                        `).join('')}
+                    </div>
+                    <button onclick="ui.closeModal()" class="w-full py-6 bg-gray-100 pill font-black text-gray-400 uppercase tracking-widest text-xs">Cerrar</button>
+                `);
+            },
+
+            loadFromHistory(idx) {
+                const h = JSON.parse(localStorage.getItem('mm_history_web'))[idx];
+                app.people = JSON.parse(JSON.stringify(h.people));
+                document.getElementById('restaurant-name').value = h.restaurant;
+                document.getElementById('global-pct').value = h.config.pct || "";
+                document.getElementById('global-cap').value = h.config.cap || "";
+                this.closeModal(); app.calculate();
+            },
+
+            copyIndividual(id) {
+                const p = app.people.find(x=>x.id===id);
+                const res = document.getElementById('restaurant-name').value;
+                const msg = `¡Hola ${p.name}! Tu total en ${res} es de $${Math.round(p.totals.final).toLocaleString()}. ¡Gracias!`;
+                navigator.clipboard.writeText(msg);
+                alert("¡Copiado al portapapeles!");
+            },
+
+            openModal(html) { document.getElementById('modal-content').innerHTML = html; document.getElementById('modal-overlay').classList.replace('hidden', 'flex'); },
+            closeModal() { document.getElementById('modal-overlay').classList.replace('flex', 'hidden'); }
+        };
+
+        window.onload = () => {
+            lucide.createIcons();
+            ui.render();
+            document.getElementById('global-pct').oninput = () => app.calculate();
+            document.getElementById('global-cap').oninput = () => app.calculate();
+        };
+    </script>
+</body>
+</html>
